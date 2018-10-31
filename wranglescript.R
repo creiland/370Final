@@ -3,7 +3,6 @@ require (tidyr)
 require(lubridate)
 library(httr)
 library(jsonlite)
-
 library(rgeos)
 library(sp)
 library(rgdal)
@@ -32,9 +31,9 @@ factorToNum <- function (f){
 }
 
 #change the columns from factors to numeric
-income_clean$zipcode <- factorToNum(income_clean$zipcode)
-income_clean$mean_income <- factorToNum(income_clean$mean_income)
-income_clean$median_income <- factorToNum(income_clean$median_income)
+income_clean$zipcode <- as.numeric(income_clean$zipcode)
+income_clean$mean_income <- as.numeric(income_clean$mean_income)
+income_clean$median_income <- as.numeric(income_clean$median_income)
 
 #join data by  zipcode
 joined <- left_join(data, income_clean, by="zipcode")
@@ -43,18 +42,41 @@ joined <- left_join(data, income_clean, by="zipcode")
 colnames(joined)[22:23] <- paste(colnames(joined)[22:23], "_by_zip", sep="")
 
 #zillow api id
-ZWSID <- "X1-ZWz18a8v9t2x3f_1acr8"
+##ZWSID <- "X1-ZWz18a8v9t2x3f_1acr8"
 
-url <- "http://www.zillow.com/webservice/GetRegionChildren.htm?zws-id=X1-ZWz18a8v9t2x3f_1acr8&state=wa&city=seattle&childtype=neighborhood"
+##url <- "http://www.zillow.com/webservice/GetRegionChildren.htm?zws-id=X1-ZWz18a8v9t2x3f_1acr8&state=wa&city=seattle&childtype=neighborhood"
 
+#read in shp file 
 KC_neighborhoods <- readOGR(dsn = "data/neighborhood", layer="neighborhood")
 
-sp::coordinates(joined) <- ~ long + lat
-proj4string(joined) <- CRS("+proj=longlat")
 
-joined <- spTransform(joined, proj4string(KC_neighborhoods))
-sp::proj4string(joined) <- proj4string(KC_neighborhoods)
+GisToDf <- function(shpData, columnToJoin, newColName){
+  #copy joined and update coordinates for joined dataset
+  joined_copy <- data.frame(joined)
+  sp::coordinates(joined_copy) <- ~ long + lat
+  proj4string(joined_copy) <- CRS("+proj=longlat")
+  
+  #honestly not sure what this does but it works
+  #I think it combines the coordinate data for the joined_copy and the 
+  joined_copy <- spTransform(joined_copy, proj4string(shpData))
+  sp::proj4string(joined_copy) <- proj4string(shpData)
+  
+  #joins the shpdata to the joined dataset
+  joined_copy <- sp::over(joined_copy, shpData)
+  return(joined_copy)
+}
 
-sp::over(joined, KC_neighborhoods)
 
-data$neighborhood <- new$NEIGHBORHOOD
+#dataframe for neighborhood data
+nh <- GisToDf(KC_neighborhoods)
+
+#join neighborhood to joined
+joined$neighborhood <- nh$NEIGHBORHO
+
+#set NAs for neighborhood to "No Neighborhood"
+joined$neighborhood <- ifelse(is.na(joined$neighborhood), 
+                             'No Neighborhood', joined$neighborhood)
+
+#data for topography
+KC_topo <- readOGR(dsn = "data/topo", layer="mtpeaks")
+topog <- GisToDf(KC_topo)
