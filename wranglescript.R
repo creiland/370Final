@@ -6,6 +6,10 @@ library(jsonlite)
 library(rgeos)
 library(sp)
 library(rgdal)
+library(ZillowR)
+library(ggmap)
+library(nominatim)
+
 
 
 options(stringsAsFactors = FALSE)
@@ -14,7 +18,8 @@ setwd("C:/Users/creil/Desktop/Info370/Final")
 
 data <- read.csv("data/kc_house_data.csv")
 
-income <- read.csv("data/ACS_16_5YR_S1901_with_ann.csv")
+#########################Census Income Data#############################
+income <- read.csv("data/ACS_15_5YR_income.csv")
 
 #take relevant columns from income data
 income_clean <- select(income, GEO.id2, HC01_EST_VC13, HC01_EST_VC15)
@@ -41,10 +46,71 @@ joined <- left_join(data, income_clean, by="zipcode")
 #add more specific column names to new columns
 colnames(joined)[22:23] <- paste(colnames(joined)[22:23], "_by_zip", sep="")
 
-#zillow api id
-##ZWSID <- "X1-ZWz18a8v9t2x3f_1acr8"
+################################Census Population Data#####################################################
+population <- read.csv("data/ACS_15_5YR_population.csv")
 
-##url <- "http://www.zillow.com/webservice/GetRegionChildren.htm?zws-id=X1-ZWz18a8v9t2x3f_1acr8&state=wa&city=seattle&childtype=neighborhood"
+#take relevant columns from income data
+pop_clean <- select(population, GEO.id2, HD01_VD01)
+
+#clean column names
+colnames(pop_clean) <- c("zipcode", "population_by_zip")
+
+#remove row 1
+pop_clean <- pop_clean[-c(1),]
+
+
+#change the columns from factors to numeric
+pop_clean$zipcode <- as.numeric(pop_clean$zipcode)
+pop_clean$population_by_zip <- as.numeric(pop_clean$population_by_zip)
+
+#join data by  zipcode
+joined <- left_join(joined, pop_clean, by="zipcode")
+
+################################Census Employment Data#####################################################
+employ <- read.csv("data/ACS_15_5YR_employment.csv")
+
+#take relevant columns from income data
+employ_clean <- select(employ, GEO.id2, HC01_EST_VC01)
+
+#clean column names
+colnames(employ_clean) <- c("zipcode", "people_employed_by_zip")
+
+#remove row 1
+employ_clean <- employ_clean[-c(1),]
+
+
+#change the columns from factors to numeric
+employ_clean$zipcode <- as.numeric(employ_clean$zipcode)
+employ_clean$people_employed_by_zip <- as.numeric(employ_clean$people_employed_by_zip)
+
+#join data by  zipcode
+joined <- left_join(joined, employ_clean, by="zipcode")
+
+################################Census Education Data#####################################################
+ed <- read.csv("data/ACS_15_5YR_education.csv")
+
+#take relevant columns from income data
+ed_clean <- select(ed, GEO.id2, HD01_VD01, HD01_VD06, HD01_VD07)
+
+#clean column names
+colnames(ed_clean) <- c("zipcode", "people_educated_by_zip", "bachelor_degrees_by_zip", "grad_degrees_by_zip")
+
+#remove row 1
+ed_clean <- ed_clean[-c(1),]
+
+
+#change the columns from factors to numeric
+ed_clean$zipcode <- as.numeric(ed_clean$zipcode)
+ed_clean$people_educated_by_zip <- as.numeric(ed_clean$people_educated_by_zip)
+ed_clean$bachelor_degrees_by_zip <- as.numeric(ed_clean$bachelor_degrees_by_zip)
+ed_clean$grad_degrees_by_zip <- as.numeric(ed_clean$grad_degrees_by_zip)
+
+#join data by  zipcode
+joined <- left_join(joined, ed_clean, by="zipcode")
+
+
+
+################################King County Neighborhood Data################################################
 
 #read in shp file 
 KC_neighborhoods <- readOGR(dsn = "data/neighborhood", layer="neighborhood")
@@ -77,6 +143,53 @@ joined$neighborhood <- nh$NEIGHBORHO
 joined$neighborhood <- ifelse(is.na(joined$neighborhood), 
                              'No Neighborhood', joined$neighborhood)
 
-#data for topography
-KC_topo <- readOGR(dsn = "data/topo", layer="mtpeaks")
-topog <- GisToDf(KC_topo)
+
+###############################KC Parcel Data#######################################
+parcel <- read.csv("data/Parcels_for_King_County_with_Address_with_Property_Information__parcel_address_area.csv")
+
+colnames(parcel) <- tolower(colnames(parcel))
+colnames(parcel)[22] <- "long"
+colnames(parcel)[4] <- "id"
+
+joined$id <- as.character(joined$id)
+
+
+#join addresses by parcel number
+temp <- left_join(joined, parcel, by=c("id"))
+
+joined$address <- temp$addr_full
+
+###############################MapQuest API for address###################################
+
+
+#get remaining missing addresses by lat and long using OpenStreetMapApi
+mapquest_key <- "	IFSHTrCJv54chVrndkMyXb5V4qsnTG93"
+
+#create new df with just NA addresses
+addrNA <- joined %>% filter(is.na(address)) %>% select(lat, long, address)
+
+#add index
+addrNA$index <- seq.int(nrow(addrNA))
+
+#limit to 15000 for api calls
+addrNA <- filter(addrNA, index < 14000)
+
+#addrNA$address <- reverse_geocode_coords(small$lat, small$long, key = mapquest_key) %>% select(display_name)
+
+
+#joined$address <- reverse_geocode_coords(addrNA$lat, addrNA$long, key = mapquest_key)
+###############################Zillow API Data###################################
+
+#ideas for columns: median price of comparable sales, list price, last sale price, 
+
+ZWSID <- "X1-ZWz18a8v9t2x3f_1acr8"
+set_zillow_web_service_id(ZWSID)
+
+
+
+
+##############################Airbnb data#######################################
+
+
+###############################Yelp Data#######################################
+

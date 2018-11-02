@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1541034005024.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "E7349817",
+    "lastKnownWriteTime" : 5652690864592942949,
+    "last_content_update" : 1541034005024,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "16DC1ADF",
+        "caption" : "addrNA",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=addrNA&cache_key=16DC1ADF",
+        "displayedObservations" : "15244",
+        "environment" : "",
+        "object" : "addrNA",
+        "preview" : "0",
+        "totalObservations" : "15244",
+        "variables" : "3"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
